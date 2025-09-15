@@ -1,9 +1,10 @@
 import os
 import datetime
+import time
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import create_engine, text
-from sqlalchemy.sql import text  # ← ADICIONE ESTA LINHA
+from sqlalchemy.sql import text
 
 # ------------------ Configuração Flask ------------------
 app = Flask(__name__)
@@ -13,7 +14,7 @@ app.secret_key = 'chave-secreta-assembleia-deus-fidelidade-2024'
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 
 # Ajuste necessário para Postgres no Render/Railway
-if DATABASE_URL.startswith("postgres://"):
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://")
 
 # Configuração engine dependendo do banco
@@ -94,11 +95,10 @@ def init_db():
             else:
                 print("❌ Falha ao inicializar banco de dados após várias tentativas")
 
-# ------------------ Rotas Públicas (Obreiros) ------------------
-@app.route("/")
-def index():
-    return render_template("index.html")
+# ------------------ FORÇAR INICIALIZAÇÃO DO BANCO ------------------
+init_db()
 
+# ------------------ Rotas Públicas (Obreiros) ------------------
 @app.route("/checkin_obreiro", methods=["POST"])
 def checkin_obreiro():
     nome = request.form["nome"]
@@ -124,6 +124,10 @@ def checkin_obreiro():
     
     return redirect(url_for("index"))
 
+@app.route("/")
+def index():
+    return render_template("index.html")
+
 # ------------------ Rotas de Liderança (Protegidas) ------------------
 @app.route("/login_lider")
 def login_lider():
@@ -139,7 +143,7 @@ def auth_lider():
             result = conn.execute(
                 text("SELECT * FROM usuarios WHERE email = :e AND tipo = 'lider'"), 
                 {"e": email}
-            ).mappings().fetchone()  # mappings() garante dict-like acesso
+            ).mappings().fetchone()
 
         if result and check_password_hash(result["senha"], senha):
             session["usuario_id"] = result["id"]
@@ -239,7 +243,6 @@ def logout():
 
 # ------------------ Inicialização ------------------
 if __name__ == "__main__":
-    init_db()
     port = 5000
     print(f"🚀 Servidor iniciado em http://localhost:{port}")
     print("📋 Acesso para obreiros: http://localhost:5000")
