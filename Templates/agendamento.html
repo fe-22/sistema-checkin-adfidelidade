@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Agendamento de Reuniões</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#novaReuniaoModal">
+        <i class="bi bi-plus-circle"></i> Nova Reunião
+    </button>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Próximas Reuniões</h4>
+            </div>
+            <div class="card-body">
+                {% if reunioes %}
+                <div class="list-group">
+                    {% for reuniao in reunioes %}
+                    <div class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">{{ reuniao.titulo }}</h5>
+                            <small class="text-primary">{{ reuniao.data }}</small>
+                        </div>
+                        <p class="mb-1">{{ reuniao.descricao }}</p>
+                        <small class="text-muted">
+                            <i class="bi bi-geo-alt"></i> {{ reuniao.local }} | 
+                            <i class="bi bi-people"></i> {{ reuniao.confirmados }} confirmados
+                        </small>
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-outline-primary">Editar</button>
+                            <button class="btn btn-sm btn-outline-success">Confirmar</button>
+                            <button class="btn btn-sm btn-outline-danger">Cancelar</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-calendar-x display-4 text-muted"></i>
+                    <p class="mt-3">Nenhuma reunião agendada</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Calendário</h5>
+            </div>
+            <div class="card-body">
+                <div id="calendario" class="bg-light p-3 rounded">
+                    <div class="text-center mb-2">
+                        <strong>Setembro 2024</strong>
+                    </div>
+                    <div class="d-flex flex-wrap">
+                        {% for day in range(1, 31) %}
+                        <div class="day-box {% if day == 15 %}bg-primary text-white{% endif %}">
+                            {{ day }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5>Estatísticas</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Reuniões este mês:</span>
+                    <strong>4</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Média de participantes:</span>
+                    <strong>24</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Próxima reunião:</span>
+                    <strong>15/09</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nova Reunião -->
+<div class="modal fade" id="novaReuniaoModal" tabindex="-1" aria-labelledby="novaReuniaoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="novaReuniaoModalLabel">Agendar Nova Reunião</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="titulo" class="form-label">Título da Reunião *</label>
+                        <input type="text" class="form-control" id="titulo" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="data" class="form-label">Data e Hora *</label>
+                        <input type="datetime-local" class="form-control" id="data" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="local" class="form-label">Local *</label>
+                        <input type="text" class="form-control" id="local" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descricao" class="form-label">Descrição</label>
+                        <textarea class="form-control" id="descricao" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Grupos Convocados</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="louvor">
+                            <label class="form-check-label" for="louvor">Louvor</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="intercessao">
+                            <label class="form-check-label" for="intercessao">Intercessão</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="recepcao">
+                            <label class="form-check-label" for="recepcao">Recepção</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary">Agendar Reunião</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.day-box {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 2px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+.day-box:hover {
+    background-color: #e9ecef;
+}
+</style>
+{% endblock %}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+{% block content %}

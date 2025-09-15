@@ -1,0 +1,8 @@
+Flask==3.0.0
+Werkzeug==3.0.1
+SQLAlchemy==2.0.28  # ← versão mais nova
+gunicorn==21.2.0
+psycopg2-binary==2.9.9
+requests==2.32.3
+flask-cors==4.0.0
+python-dotenv==1.0.0
