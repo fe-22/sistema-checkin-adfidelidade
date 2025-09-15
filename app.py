@@ -27,62 +27,72 @@ else:
 # ------------------ Funções auxiliares ------------------
 def init_db():
     """Cria as tabelas necessárias."""
-    try:
-        with engine.begin() as conn:
-            # Tabela de usuários (líderes)
-            conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id SERIAL PRIMARY KEY,
-                nome TEXT NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                senha TEXT NOT NULL,
-                tipo TEXT DEFAULT 'lider',
-                criado TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            """))
-
-            # Tabela de membros (obreiros)
-            conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS membros (
-                id SERIAL PRIMARY KEY,
-                nome TEXT NOT NULL,
-                grupo TEXT,
-                telefone TEXT,
-                email TEXT,
-                observacoes TEXT,
-                presente BOOLEAN DEFAULT FALSE,
-                data_checkin TIMESTAMP,
-                criado TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            """))
-            
-            # Usuário líder padrão
-            result = conn.execute(text("SELECT COUNT(*) FROM usuarios")).scalar()
-            if result == 0:
-                senha_hash = generate_password_hash("admin123")
-                conn.execute(
-                    text("INSERT INTO usuarios (nome, email, senha, tipo) VALUES (:n, :e, :s, :t)"),
-                    {"n": "Pastor Líder", "e": "lider@adfidelidade.com", "s": senha_hash, "t": "lider"}
-                )
-                print("✅ Usuário líder criado: lider@adfidelidade.com / admin123")
-                
-            # Membros de exemplo
-            result = conn.execute(text("SELECT COUNT(*) FROM membros")).scalar()
-            if result == 0:
+    max_retries = 3
+    retry_delay = 2  # segundos
+    
+    for attempt in range(max_retries):
+        try:
+            with engine.begin() as conn:
+                # Tabela de usuários (líderes)
                 conn.execute(text("""
-                INSERT INTO membros (nome, grupo, telefone) VALUES 
-                ('João Silva', 'Louvor', '(11) 99999-9999'),
-                ('Maria Santos', 'Intercessão', '(11) 98888-8888'),
-                ('Pedro Costa', 'Recepção', '(11) 97777-7777'),
-                ('Ana Oliveira', 'Louvor', '(11) 96666-6666'),
-                ('Carlos Pereira', 'Intercessão', '(11) 95555-5555'),
-                ('Fernando Alexandre Fernandes', 'Evangelismo', '(11) 98217-0425');
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    senha TEXT NOT NULL,
+                    tipo TEXT DEFAULT 'lider',
+                    criado TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
                 """))
-                print("✅ Dados de exemplo inseridos")
                 
-        print("✅ Banco de dados inicializado com sucesso!")
-    except Exception as e:
-        print(f"❌ Erro ao inicializar banco: {e}")
+                # Tabela de membros (obreiros)
+                conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS membros (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL,
+                    grupo TEXT,
+                    telefone TEXT,
+                    email TEXT,
+                    observacoes TEXT,
+                    presente BOOLEAN DEFAULT FALSE,
+                    data_checkin TIMESTAMP,
+                    criado TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """))
+                
+                # Usuário líder padrão
+                result = conn.execute(text("SELECT COUNT(*) FROM usuarios")).scalar()
+                if result == 0:
+                    senha_hash = generate_password_hash("admin123")
+                    conn.execute(
+                        text("INSERT INTO usuarios (nome, email, senha, tipo) VALUES (:n, :e, :s, :t)"),
+                        {"n": "Pastor Líder", "e": "lider@adfidelidade.com", "s": senha_hash, "t": "lider"}
+                    )
+                    print("✅ Usuário líder criado: lider@adfidelidade.com / admin123")
+                
+                # Membros de exemplo
+                result = conn.execute(text("SELECT COUNT(*) FROM membros")).scalar()
+                if result == 0:
+                    conn.execute(text("""
+                    INSERT INTO membros (nome, grupo, telefone) VALUES 
+                    ('João Silva', 'Louvor', '(11) 99999-9999'),
+                    ('Maria Santos', 'Intercessão', '(11) 98888-8888'),
+                    ('Pedro Costa', 'Recepção', '(11) 97777-7777'),
+                    ('Ana Oliveira', 'Louvor', '(11) 96666-6666'),
+                    ('Carlos Pereira', 'Intercessão', '(11) 95555-5555'),
+                    ('Fernando Alexandre Fernandes', 'Evangelismo', '(11) 98217-0425');
+                    """))
+                    print("✅ Dados de exemplo inseridos")
+                    
+            print("✅ Banco de dados inicializado com sucesso!")
+            break
+            
+        except Exception as e:
+            print(f"❌ Tentativa {attempt + 1} falhou: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            else:
+                print("❌ Falha ao inicializar banco de dados após várias tentativas")
 
 # ------------------ Rotas Públicas (Obreiros) ------------------
 @app.route("/")
