@@ -76,12 +76,9 @@ def init_db():
                 if result == 0:
                     conn.execute(text("""
                     INSERT INTO membros (nome, grupo, telefone) VALUES 
-                    ('João Silva', 'Louvor', '(11) 99999-9999'),
-                    ('Maria Santos', 'Intercessão', '(11) 98888-8888'),
-                    ('Pedro Costa', 'Recepção', '(11) 97777-7777'),
-                    ('Ana Oliveira', 'Louvor', '(11) 96666-6666'),
-                    ('Carlos Pereira', 'Intercessão', '(11) 95555-5555'),
-                    ('Fernando Alexandre Fernandes', 'Evangelismo', '(11) 98217-0425');
+                    ('Fernando Alexandre Fernandes', 'Evangelismo', '(11) 99999-9999'),
+                    ('Maria Silva Santos', 'Louvor', '(11) 98888-8888'),
+                    ('João Pereira Oliveira', 'Intercessão', '(11) 97777-7777')
                     """))
                     print("✅ Dados de exemplo inseridos")
                     
@@ -232,6 +229,24 @@ def cadastrar_obreiro():
         flash("Obreiro cadastrado com sucesso!", "success")
     except Exception as e:
         flash(f"Erro ao cadastrar obreiro: {e}", "danger")
+    
+    return redirect(url_for("painel_lider"))
+
+@app.route("/remover_obreiro/<int:id>", methods=["POST"])
+def remover_obreiro(id):
+    if "tipo_usuario" not in session or session["tipo_usuario"] != "lider":
+        flash("Acesso não autorizado", "danger")
+        return redirect(url_for("login_lider"))
+    
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text("DELETE FROM membros WHERE id = :id"),
+                {"id": id}
+            )
+        flash("Obreiro removido com sucesso!", "success")
+    except Exception as e:
+        flash(f"Erro ao remover obreiro: {e}", "danger")
     
     return redirect(url_for("painel_lider"))
 

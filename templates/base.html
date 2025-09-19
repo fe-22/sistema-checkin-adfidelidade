@@ -3,41 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ADFidelidade{% endblock %}</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(135deg, #040509ff 0%, #09040eff 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .card {
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-            border: none;
-            border-radius: 1rem;
-        }
-    </style>
+    <title>Sistema de Check-in - Assembleia de Deus Fidelidade</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container py-5">
+    <!-- Header com logo -->
+    <header class="bg-light py-3 text-center">
+        <div class="container">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Assembleia de Deus Ministério Fidelidade" height="80" class="mb-2">
+            <h1 class="h3">Sistema de Check-in de Obreiros</h1>
+            {% if session.tipo_usuario == 'lider' %}
+            <p class="text-muted">Painel de Liderança</p>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Conteúdo principal -->
+    <main class="container py-4">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
                         {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
-        
-        {% block content %}{% endblock %}  
-    </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer com informações da igreja -->
+    <footer class="bg-dark text-light py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Assembleia de Deus - Ministério Fidelidade</h5>
+                    <p>Rua Ernesta Pelosine, 196 - Centro<br>
+                    São Bernardo do campo - SP, CEP: 09771-220<br>
+                    Tel: (11) 2758-2589</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p>"Nós do ministério Fidelidade sob a proteção de Deus,estamos compromissados na divulgação do evangelho de Jesus Cristo e com a defesa da Familia"</p>
+                    <p class="text-muted">Sistema de Check-in &copy; 2024</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

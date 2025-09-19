@@ -1,209 +1,130 @@
 {% extends "base.html" %}
 
-{% block content %}<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Líder - ADFidelidade</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        .card-dashboard {
-            transition: transform 0.2s;
-        }
-        .card-dashboard:hover {
-            transform: translateY(-5px);
-        }
-    </style>
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="#">
-                <i class="bi bi-people-fill"></i> ADFidelidade - Painel Líder
-            </a>
-            <div class="navbar-nav ms-auto">
-                <span class="navbar-text me-3">Bem-vindo, {{ session.usuario_nome }}</span>
-                <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">
-                    <i class="bi bi-box-arrow-right"></i> Sair
-                </a>
-            </div>
-        </div>
-    </nav>
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Painel de Controle - Liderança</h2>
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">Sair</a>
+</div>
 
-    <div class="container mt-4">
-        <h2 class="mb-4"><i class="bi bi-speedometer2"></i> Painel de Controle</h2>
-        
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <!-- Cards de Estatísticas -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card text-white bg-success card-dashboard">
-                    <div class="card-body text-center">
-                        <h5><i class="bi bi-check-circle"></i> Presentes</h5>
-                        <h2>{{ total_presentes }}</h2>
-                    </div>
-                </div>
+<!-- Estatísticas -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body text-center">
+                <h5 class="card-title">Total de Obreiros</h5>
+                <p class="card-text display-6">{{ total_membros }}</p>
             </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-danger card-dashboard">
-                    <div class="card-body text-center">
-                        <h5><i class="bi bi-x-circle"></i> Ausentes</h5>
-                        <h2>{{ total_ausentes }}</h2>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-info card-dashboard">
-                    <div class="card-body text-center">
-                        <h5><i class="bi bi-people-fill"></i> Total</h5>
-                        <h2>{{ total_membros }}</h2>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-warning card-dashboard">
-                    <div class="card-body text-center">
-                        <h5><i class="bi bi-percent"></i> Presença</h5>
-                        <h2>{{ ((total_presentes / total_membros * 100) if total_membros > 0 else 0) | round(1) }}%</h2>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Formulário de Cadastro de Obreiro -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                <h5><i class="bi bi-person-plus"></i> Cadastrar Novo Obreiro</h5>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('cadastrar_obreiro') }}">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label class="form-label">Nome Completo *</label>
-                                <input type="text" class="form-control" name="nome" required>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label class="form-label">Grupo/Ministerial *</label>
-                                <select class="form-select" name="grupo" required>
-                                    <option value="">Selecione...</option>
-                                                                <option value="Louvor">Louvor</option>
-                                    <option value="Presbitero">Presbitero</option>
-                                    <option value="Servir">Servir</option>
-                                    <option value="Diaconia">Diaconia</option>
-                                    <option value="Cooperador">Cooperador</option>
-                                    <option value="Evangelismo">Evangelismo</option>
-                                    <option value="Social">Social</option>
-                                    <option value="Pastor">Pastor</option>
-                                    <option value="Missionário">Missionário</option>
-                                    <option value="Lider">Lider</option>
-                                </select>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label class="form-label">Telefone</label>
-                                <input type="tel" class="form-control" name="telefone" placeholder="(11) 99999-9999">
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="mb-3">
-                                <label class="form-label"> </label>
-                                <button type="submit" class="btn btn-success w-100">
-                                    <i class="bi bi-check-lg"></i> Cadastrar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Lista de Obreiros -->
-        <div class="card">
-            <div class="card-header bg-secondary text-white">
-                <h5><i class="bi bi-list-check"></i> Controle de Presença ({{ membros|length }} obreiros)</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Nome</th>
-                                <th>Grupo</th>
-                                <th>Telefone</th>
-                                <th>Status</th>
-                                <th>Check-in</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for membro in membros %}
-                            <tr>
-                                <td>{{ membro.nome }}</td>
-                                <td>
-                                    <span class="badge bg-primary">{{ membro.grupo }}</span>
-                                </td>
-                                <td>{{ membro.telefone or 'N/A' }}</td>
-                                <td>
-                                    {% if membro.presente %}
-                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> Presente</span>
-                                    {% else %}
-                                        <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Ausente</span>
-                                    {% endif %}
-                                </td>
-                               <td>
-    {% if membro.data_checkin %}
-        {% if membro.data_checkin is string %}
-            {{ membro.data_checkin }}
-        {% else %}
-            {{ membro.data_checkin.strftime('%H:%M') }}
-        {% endif %}
-    {% else %}
-        -
-    {% endif %}
-</td>
-                                <td>
-                                    <form method="POST" action="{{ url_for('checkin_lider') }}" class="d-inline">
-                                        <input type="hidden" name="membro_id" value="{{ membro.id }}">
-                                        <input type="hidden" name="presente" value="{{ 'off' if membro.presente else 'on' }}">
-                                        <button type="submit" class="btn btn-sm btn-{{ 'warning' if membro.presente else 'success' }}">
-                                            <i class="bi bi-{{ 'x' if membro.presente else 'check' }}"></i>
-                                            {{ 'Ausente' if membro.presente else 'Presente' }}
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div class="mt-3 text-center">
-            <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
-                <i class="bi bi-arrow-left"></i> Voltar para Página Inicial
-            </a>
         </div>
     </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-success">
+            <div class="card-body text-center">
+                <h5 class="card-title">Presentes</h5>
+                <p class="card-text display-6">{{ total_presentes }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-warning">
+            <div class="card-body text-center">
+                <h5 class="card-title">Ausentes</h5>
+                <p class="card-text display-6">{{ total_ausentes }}</p>
+            </div>
+        </div>
+    </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+<!-- Formulário de Cadastro de Obreiros -->
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h3 class="h5 mb-0">Cadastrar Novo Obreiro</h3>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('cadastrar_obreiro') }}">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="nome" class="form-label">Nome Completo *</label>
+                        <input type="text" class="form-control" id="nome" name="nome" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="grupo" class="form-label">Grupo/Ministry *</label>
+                        <input type="text" class="form-control" id="grupo" name="grupo" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="telefone" class="form-label">Telefone</label>
+                        <input type="tel" class="form-control" id="telefone" name="telefone">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email">
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Cadastrar Obreiro</button>
+        </form>
+    </div>
+</div>
+
+<!-- Lista de Obreiros -->
+<div class="card">
+    <div class="card-header bg-secondary text-white">
+        <h3 class="h5 mb-0">Lista de Obreiros</h3>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Grupo</th>
+                        <th>Telefone</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Check-in</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for membro in membros %}
+                    <tr>
+                        <td>{{ membro.nome }}</td>
+                        <td>{{ membro.grupo }}</td>
+                        <td>{{ membro.telefone or '-' }}</td>
+                        <td>{{ membro.email or '-' }}</td>
+                        <td>
+                            {% if membro.presente %}
+                                <span class="badge bg-success">Presente</span>
+                            {% else %}
+                                <span class="badge bg-warning">Ausente</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('checkin_lider') }}" class="d-inline">
+                                <input type="hidden" name="membro_id" value="{{ membro.id }}">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="presente" 
+                                           {{ 'checked' if membro.presente else '' }} onchange="this.form.submit()">
+                                </div>
+                            </form>
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('remover_obreiro', id=membro.id) }}" class="d-inline"
+                                  onsubmit="return confirm('Tem certeza que deseja remover este obreiro?')">
+                                <button type="submit" class="btn btn-sm btn-danger">Remover</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
