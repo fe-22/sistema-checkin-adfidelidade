@@ -5,6 +5,7 @@
     <h2>Painel de Controle - Liderança</h2>
     <div class="d-flex gap-2">
         <a href="{{ url_for('form_ata') }}" class="btn btn-outline-secondary">Registrar Ata</a>
+        <a href="{{ url_for('visualizar_atas_arquivadas') }}" class="btn btn-outline-info">📚 Atas Arquivadas</a>
         <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">Sair</a>
     </div>
 </div>
@@ -84,8 +85,9 @@
 
 <!-- Lista de Obreiros -->
 <div class="card">
-    <div class="card-header bg-secondary text-white">
+    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
         <h3 class="h5 mb-0">Lista de Obreiros</h3>
+        <span class="badge bg-light text-dark">{{ membros|length }} obreiros</span>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -109,7 +111,19 @@
                         <td>{{ membro.grupo }}</td>
                         <td>{{ membro.telefone or '-' }}</td>
                         <td>{{ membro.email or '-' }}</td>
-                        <td>{% if membro.data_checkin %}{{ membro.data_checkin }}{% else %}-{% endif %}</td>
+                        <td>
+                            {% if membro.data_checkin %}
+                                {% if membro.data_checkin is string %}
+                                    {# Se for string, mostra como está #}
+                                    {{ membro.data_checkin }}
+                                {% else %}
+                                    {# Se for datetime, formata #}
+                                    {{ membro.data_checkin.strftime('%d/%m/%Y %H:%M') }}
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
                         <td>
                             {% if membro.presente %}
                                 <span class="badge bg-success">Presente</span>
