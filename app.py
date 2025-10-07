@@ -75,6 +75,8 @@ def init_db():
                     tema TEXT,
                     local TEXT,
                     observacoes TEXT,
+                    lista_presentes TEXT, -- JSON com lista de presentes
+                    arquivada BOOLEAN DEFAULT FALSE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
                 """))
@@ -119,6 +121,14 @@ def init_db():
                 conn.execute(text("ALTER TABLE membros ADD COLUMN checkin_latitude REAL"))
             if "checkin_longitude" not in col_names:
                 conn.execute(text("ALTER TABLE membros ADD COLUMN checkin_longitude REAL"))
+            
+            # Migração para coluna lista_presentes e arquivada
+            cols_ata = conn.execute(text("PRAGMA table_info(atas)")).fetchall()
+            col_names_ata = {c[1] for c in cols_ata}
+            if "lista_presentes" not in col_names_ata:
+                conn.execute(text("ALTER TABLE atas ADD COLUMN lista_presentes TEXT"))
+            if "arquivada" not in col_names_ata:
+                conn.execute(text("ALTER TABLE atas ADD COLUMN arquivada BOOLEAN DEFAULT FALSE"))
     except Exception:
         # Ignorar falhas de migração silenciosamente para compatibilidade
         pass
@@ -212,11 +222,17 @@ def painel_lider():
                 text("SELECT COUNT(*) FROM membros")
             ).scalar() or 0
             
+            # Buscar atas não arquivadas
+            atas = conn.execute(
+                text("SELECT * FROM atas WHERE arquivada = FALSE ORDER BY data_reuniao DESC")
+            ).mappings().all()
+            
         return render_template("painel_lider.html", 
                              membros=membros,
                              total_presentes=total_presentes,
                              total_ausentes=total_ausentes,
-                             total_membros=total_membros)
+                             total_membros=total_membros,
+                             atas=atas)
     except Exception as e:
         flash(f"Erro ao carregar painel: {e}", "danger")
         return redirect(url_for("login_lider"))
@@ -284,7 +300,6 @@ def download_modelo_obreiro():
     output.seek(0)
     return send_file(output, as_attachment=True, download_name="modelo_obreiros.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-
 @app.route("/upload_obreiros", methods=["POST"])
 def upload_obreiros():
     if "tipo_usuario" not in session or session.get("tipo_usuario") != "lider":
@@ -326,18 +341,31 @@ def upload_obreiros():
         flash(f"Erro ao processar arquivo: {e}", "danger")
     return redirect(url_for("painel_lider"))
 
-
 # ------------------ Rotas da Ata ------------------
 @app.route("/ata", methods=["GET"]) 
 def form_ata():
     if "tipo_usuario" not in session or session.get("tipo_usuario") != "lider":
         flash("Acesso não autorizado", "danger")
         return redirect(url_for("login_lider"))
+    
+    # Buscar lista de presentes atuais
+    try:
+        with engine.connect() as conn:
+            presentes = conn.execute(
+                text("SELECT id, nome, grupo FROM membros WHERE presente = TRUE ORDER BY nome")
+            ).mappings().all()
+    except Exception as e:
+        flash(f"Erro ao carregar lista de presentes: {e}", "danger")
+        presentes = []
+    
     # Opções para combos
     tipos = ["Culto de Obreiros", "Reunião de Líderes", "Assembleia", "Treinamento"]
     departamentos = ["Evangelismo", "Louvor", "Intercessão", "Diaconato", "Ensino"]
-    return render_template("ata.html", tipos=tipos, departamentos=departamentos)
-
+    
+    return render_template("ata.html", 
+                         tipos=tipos, 
+                         departamentos=departamentos,
+                         presentes=presentes)
 
 @app.route("/ata", methods=["POST"]) 
 def salvar_ata():
@@ -351,13 +379,35 @@ def salvar_ata():
     tema = request.form.get("tema")
     local = request.form.get("local")
     observacoes = request.form.get("observacoes")
-
+    
+    # Capturar lista de presentes selecionados
+    presentes_selecionados = request.form.getlist("presentes")
+    
     try:
         with engine.begin() as conn:
+            # Buscar informações dos presentes selecionados
+            lista_presentes = []
+            if presentes_selecionados:
+                for membro_id in presentes_selecionados:
+                    membro = conn.execute(
+                        text("SELECT nome, grupo FROM membros WHERE id = :id"),
+                        {"id": membro_id}
+                    ).mappings().fetchone()
+                    if membro:
+                        lista_presentes.append({
+                            "id": membro_id,
+                            "nome": membro["nome"],
+                            "grupo": membro["grupo"]
+                        })
+            
+            # Converter lista para JSON string
+            import json
+            lista_presentes_json = json.dumps(lista_presentes, ensure_ascii=False)
+            
             conn.execute(
                 text("""
-                    INSERT INTO atas (data_reuniao, tipo, departamento, tema, local, observacoes)
-                    VALUES (:data_reuniao, :tipo, :departamento, :tema, :local, :observacoes)
+                    INSERT INTO atas (data_reuniao, tipo, departamento, tema, local, observacoes, lista_presentes)
+                    VALUES (:data_reuniao, :tipo, :departamento, :tema, :local, :observacoes, :lista_presentes)
                 """),
                 {
                     "data_reuniao": data_reuniao,
@@ -365,14 +415,152 @@ def salvar_ata():
                     "departamento": departamento,
                     "tema": tema,
                     "local": local,
-                    "observacoes": observacoes
+                    "observacoes": observacoes,
+                    "lista_presentes": lista_presentes_json
                 }
             )
         flash("Ata registrada com sucesso!", "success")
-        return redirect(url_for("form_ata"))
+        return redirect(url_for("painel_lider"))
     except Exception as e:
         flash(f"Erro ao salvar ata: {e}", "danger")
         return redirect(url_for("form_ata"))
+
+@app.route("/gerar_ata_pdf/<int:ata_id>")
+def gerar_ata_pdf(ata_id):
+    if "tipo_usuario" not in session or session.get("tipo_usuario") != "lider":
+        flash("Acesso não autorizado", "danger")
+        return redirect(url_for("login_lider"))
+    
+    try:
+        with engine.connect() as conn:
+            ata = conn.execute(
+                text("SELECT * FROM atas WHERE id = :id"),
+                {"id": ata_id}
+            ).mappings().fetchone()
+            
+            if not ata:
+                flash("Ata não encontrada", "danger")
+                return redirect(url_for("painel_lider"))
+            
+            # Converter lista de presentes de volta para objeto
+            import json
+            lista_presentes = json.loads(ata["lista_presentes"]) if ata["lista_presentes"] else []
+            
+            # Criar PDF simples (pode ser substituído por uma biblioteca mais robusta)
+            from reportlab.lib.pagesizes import letter
+            from reportlab.pdfgen import canvas
+            from reportlab.lib.utils import ImageReader
+            import io
+            
+            buffer = io.BytesIO()
+            c = canvas.Canvas(buffer, pagesize=letter)
+            
+            # Cabeçalho
+            c.setFont("Helvetica-Bold", 16)
+            c.drawString(100, 750, "ASSEMBLEIA DE DEUS - FIDELIDADE")
+            c.setFont("Helvetica", 12)
+            c.drawString(100, 730, f"ATA DE {ata['tipo'] or 'REUNIÃO'}")
+            
+            # Informações da reunião
+            y = 700
+            c.drawString(100, y, f"Data: {ata['data_reuniao']}")
+            y -= 20
+            c.drawString(100, y, f"Tipo: {ata['tipo']}")
+            y -= 20
+            c.drawString(100, y, f"Departamento: {ata['departamento']}")
+            y -= 20
+            c.drawString(100, y, f"Tema: {ata['tema']}")
+            y -= 20
+            c.drawString(100, y, f"Local: {ata['local']}")
+            y -= 30
+            
+            # Lista de presentes
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(100, y, "LISTA DE PRESENTES:")
+            y -= 20
+            c.setFont("Helvetica", 10)
+            
+            for i, presente in enumerate(lista_presentes):
+                if y < 100:  # Nova página se necessário
+                    c.showPage()
+                    y = 750
+                    c.setFont("Helvetica", 10)
+                
+                c.drawString(120, y, f"{i+1}. {presente['nome']} - {presente['grupo']}")
+                y -= 15
+            
+            # Observações
+            if ata['observacoes'] and y > 150:
+                y -= 30
+                c.setFont("Helvetica-Bold", 12)
+                c.drawString(100, y, "OBSERVAÇÕES:")
+                y -= 20
+                c.setFont("Helvetica", 10)
+                # Quebrar texto longo
+                observacoes = ata['observacoes']
+                lines = []
+                words = observacoes.split()
+                line = ""
+                for word in words:
+                    if len(line + " " + word) <= 80:
+                        line += " " + word
+                    else:
+                        lines.append(line)
+                        line = word
+                if line:
+                    lines.append(line)
+                
+                for line in lines:
+                    if y < 100:
+                        c.showPage()
+                        y = 750
+                        c.setFont("Helvetica", 10)
+                    c.drawString(100, y, line.strip())
+                    y -= 15
+            
+            c.save()
+            buffer.seek(0)
+            
+            return send_file(buffer, as_attachment=True, download_name=f"ata_{ata['data_reuniao']}.pdf", mimetype='application/pdf')
+            
+    except Exception as e:
+        flash(f"Erro ao gerar PDF: {e}", "danger")
+        return redirect(url_for("painel_lider"))
+
+@app.route("/arquivar_ata/<int:ata_id>", methods=["POST"])
+def arquivar_ata(ata_id):
+    if "tipo_usuario" not in session or session.get("tipo_usuario") != "lider":
+        flash("Acesso não autorizado", "danger")
+        return redirect(url_for("login_lider"))
+    
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text("UPDATE atas SET arquivada = TRUE WHERE id = :id"),
+                {"id": ata_id}
+            )
+        flash("Ata arquivada com sucesso!", "success")
+    except Exception as e:
+        flash(f"Erro ao arquivar ata: {e}", "danger")
+    
+    return redirect(url_for("painel_lider"))
+
+@app.route("/visualizar_atas_arquivadas")
+def visualizar_atas_arquivadas():
+    if "tipo_usuario" not in session or session.get("tipo_usuario") != "lider":
+        flash("Acesso não autorizado", "danger")
+        return redirect(url_for("login_lider"))
+    
+    try:
+        with engine.connect() as conn:
+            atas_arquivadas = conn.execute(
+                text("SELECT * FROM atas WHERE arquivada = TRUE ORDER BY data_reuniao DESC")
+            ).mappings().all()
+            
+        return render_template("atas_arquivadas.html", atas=atas_arquivadas)
+    except Exception as e:
+        flash(f"Erro ao carregar atas arquivadas: {e}", "danger")
+        return redirect(url_for("painel_lider"))
 
 @app.route("/remover_obreiro/<int:id>", methods=["POST"])
 def remover_obreiro(id):
