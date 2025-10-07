@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>Registrar Ata de Reunião</h2>
+            <a href="{{ url_for('painel_lider') }}" class="btn btn-outline-secondary">Voltar</a>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('salvar_ata') }}">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label" for="data_reuniao">Data</label>
+                                <input class="form-control" type="date" id="data_reuniao" name="data_reuniao" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label" for="tipo">Tipo</label>
+                                <select class="form-select" id="tipo" name="tipo" required>
+                                    <option value="" disabled selected>Selecione...</option>
+                                    {% for t in tipos %}
+                                    <option value="{{ t }}">{{ t }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label" for="departamento">Departamento</label>
+                                <select class="form-select" id="departamento" name="departamento" required>
+                                    <option value="" disabled selected>Selecione...</option>
+                                    {% for d in departamentos %}
+                                    <option value="{{ d }}">{{ d }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="tema">Tema</label>
+                        <input class="form-control" type="text" id="tema" name="tema" placeholder="Tema da reunião">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="local">Local</label>
+                        <input class="form-control" type="text" id="local" name="local" placeholder="Local da reunião">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="observacoes">Observações</label>
+                        <textarea class="form-control" id="observacoes" name="observacoes" rows="4" placeholder="Anotações gerais, decisões, compromissos, etc."></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button class="btn btn-primary" type="submit">Salvar Ata</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+

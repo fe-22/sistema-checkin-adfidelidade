@@ -8,7 +8,7 @@
                 <h2 class="h4 mb-0">Check-in de Obreiros</h2>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('checkin_obreiro') }}">
+                <form method="POST" action="{{ url_for('checkin_obreiro') }}" onsubmit="return captureGeo()">
                     <div class="mb-3">
                         <label for="nome" class="form-label">Nome Completo</label>
                         <input type="text" class="form-control" id="nome" name="nome" required>
@@ -17,6 +17,8 @@
                         <label for="grupo" class="form-label">Grupo/Ministry</label>
                         <input type="text" class="form-control" id="grupo" name="grupo" required>
                     </div>
+                    <input type="hidden" name="latitude" id="latitude">
+                    <input type="hidden" name="longitude" id="longitude">
                     <button type="submit" class="btn btn-primary w-100">Fazer Check-in</button>
                 </form>
                 
@@ -29,4 +31,16 @@
         </div>
     </div>
 </div>
+<script>
+function captureGeo(){
+    if(!navigator.geolocation){ return true; }
+    return new Promise((resolve)=>{
+        navigator.geolocation.getCurrentPosition(function(pos){
+            document.getElementById('latitude').value = pos.coords.latitude;
+            document.getElementById('longitude').value = pos.coords.longitude;
+            resolve(true);
+        }, function(){ resolve(true); }, {enableHighAccuracy:true, timeout:3000});
+    });
+}
+</script>
 {% endblock %}

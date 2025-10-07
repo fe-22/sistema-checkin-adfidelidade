@@ -3,7 +3,10 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Painel de Controle - Liderança</h2>
-    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">Sair</a>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('form_ata') }}" class="btn btn-outline-secondary">Registrar Ata</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">Sair</a>
+    </div>
 </div>
 
 <!-- Estatísticas -->
@@ -40,6 +43,13 @@
         <h3 class="h5 mb-0">Cadastrar Novo Obreiro</h3>
     </div>
     <div class="card-body">
+        <div class="mb-3 d-flex align-items-center gap-2">
+            <a class="btn btn-sm btn-success" href="{{ url_for('download_modelo_obreiro') }}">Baixar Modelo Excel</a>
+            <form class="d-inline" method="POST" enctype="multipart/form-data" action="{{ url_for('upload_obreiros') }}">
+                <input class="form-control form-control-sm d-inline-block" style="width:auto" type="file" name="arquivo" accept=".xlsx,.xls" required>
+                <button type="submit" class="btn btn-sm btn-primary">Enviar Planilha</button>
+            </form>
+        </div>
         <form method="POST" action="{{ url_for('cadastrar_obreiro') }}">
             <div class="row">
                 <div class="col-md-4">
@@ -86,6 +96,7 @@
                         <th>Grupo</th>
                         <th>Telefone</th>
                         <th>Email</th>
+                        <th>Últ. Check-in</th>
                         <th>Status</th>
                         <th>Check-in</th>
                         <th>Ações</th>
@@ -98,6 +109,7 @@
                         <td>{{ membro.grupo }}</td>
                         <td>{{ membro.telefone or '-' }}</td>
                         <td>{{ membro.email or '-' }}</td>
+                        <td>{% if membro.data_checkin %}{{ membro.data_checkin }}{% else %}-{% endif %}</td>
                         <td>
                             {% if membro.presente %}
                                 <span class="badge bg-success">Presente</span>
