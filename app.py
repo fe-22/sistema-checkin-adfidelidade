@@ -1,10 +1,12 @@
 import os
 import datetime
 import time
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from io import BytesIO
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import create_engine, text
 from sqlalchemy.sql import text
+import pandas as pd
 
 # ------------------ Configuração Flask ------------------
 app = Flask(__name__)
@@ -57,7 +59,23 @@ def init_db():
                     observacoes TEXT,
                     presente BOOLEAN DEFAULT FALSE,
                     data_checkin TIMESTAMP,
+                    checkin_latitude REAL,
+                    checkin_longitude REAL,
                     criado TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """))
+
+                # Tabela de atas (para registros de reuniões)
+                conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS atas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    data_reuniao DATE NOT NULL,
+                    tipo TEXT,           -- Ex: Culto de Obreiros, Reunião de Líderes
+                    departamento TEXT,   -- Ex: Evangelismo, Louvor, Intercessão
+                    tema TEXT,
+                    local TEXT,
+                    observacoes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
                 """))
                 
@@ -92,6 +110,19 @@ def init_db():
             else:
                 print("❌ Falha ao inicializar banco de dados após várias tentativas")
 
+    # Migração simples: garantir colunas de geolocalização em membros (idempotente)
+    try:
+        with engine.begin() as conn:
+            cols = conn.execute(text("PRAGMA table_info(membros)")).fetchall()
+            col_names = {c[1] for c in cols}
+            if "checkin_latitude" not in col_names:
+                conn.execute(text("ALTER TABLE membros ADD COLUMN checkin_latitude REAL"))
+            if "checkin_longitude" not in col_names:
+                conn.execute(text("ALTER TABLE membros ADD COLUMN checkin_longitude REAL"))
+    except Exception:
+        # Ignorar falhas de migração silenciosamente para compatibilidade
+        pass
+
 # ------------------ FORÇAR INICIALIZAÇÃO DO BANCO ------------------
 init_db()
 
@@ -100,6 +131,8 @@ init_db()
 def checkin_obreiro():
     nome = request.form["nome"]
     grupo = request.form["grupo"]
+    lat = request.form.get("latitude")
+    lon = request.form.get("longitude")
     
     try:
         with engine.begin() as conn:
@@ -110,8 +143,8 @@ def checkin_obreiro():
             
             if result:
                 conn.execute(
-                    text("UPDATE membros SET presente = TRUE, data_checkin = :d WHERE id = :id"),
-                    {"d": datetime.datetime.now(), "id": result.id}
+                    text("UPDATE membros SET presente = TRUE, data_checkin = :d, checkin_latitude = :lat, checkin_longitude = :lon WHERE id = :id"),
+                    {"d": datetime.datetime.now(), "id": result.id, "lat": float(lat) if lat else None, "lon": float(lon) if lon else None}
                 )
                 flash("Check-in realizado com sucesso! Deus te abençoe!", "success")
             else:
@@ -231,6 +264,115 @@ def cadastrar_obreiro():
         flash(f"Erro ao cadastrar obreiro: {e}", "danger")
     
     return redirect(url_for("painel_lider"))
+
+# ------------------ Excel: Download modelo e Upload em lote ------------------
+@app.route("/download_modelo_obreiro")
+def download_modelo_obreiro():
+    if "tipo_usuario" not in session or session.get("tipo_usuario") != "lider":
+        flash("Acesso não autorizado", "danger")
+        return redirect(url_for("login_lider"))
+
+    df = pd.DataFrame({
+        "nome": ["Ex: João da Silva"],
+        "grupo": ["Ex: Evangelismo"],
+        "telefone": ["(11) 99999-9999"],
+        "email": ["joao@email.com"]
+    })
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="obreiros")
+    output.seek(0)
+    return send_file(output, as_attachment=True, download_name="modelo_obreiros.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.route("/upload_obreiros", methods=["POST"])
+def upload_obreiros():
+    if "tipo_usuario" not in session or session.get("tipo_usuario") != "lider":
+        flash("Acesso não autorizado", "danger")
+        return redirect(url_for("login_lider"))
+
+    file = request.files.get("arquivo")
+    if not file:
+        flash("Nenhum arquivo enviado", "warning")
+        return redirect(url_for("painel_lider"))
+
+    try:
+        df = pd.read_excel(file)
+        # Normalizar colunas esperadas
+        expected_cols = {"nome", "grupo", "telefone", "email"}
+        df_cols = {c.strip().lower() for c in df.columns}
+        if not expected_cols.issubset(df_cols):
+            flash("Modelo inválido. Certifique-se de usar o arquivo modelo.", "danger")
+            return redirect(url_for("painel_lider"))
+
+        # Renomear para padrão
+        rename_map = {c: c.strip().lower() for c in df.columns}
+        df = df.rename(columns=rename_map)
+        df = df[list(expected_cols)]
+
+        registros = df.fillna("").to_dict(orient="records")
+        inseridos = 0
+        with engine.begin() as conn:
+            for r in registros:
+                if not r.get("nome"):
+                    continue
+                conn.execute(
+                    text("INSERT INTO membros (nome, grupo, telefone, email) VALUES (:n, :g, :t, :e)"),
+                    {"n": r.get("nome"), "g": r.get("grupo"), "t": r.get("telefone"), "e": r.get("email")}
+                )
+                inseridos += 1
+        flash(f"Upload concluído. {inseridos} obreiros adicionados.", "success")
+    except Exception as e:
+        flash(f"Erro ao processar arquivo: {e}", "danger")
+    return redirect(url_for("painel_lider"))
+
+
+# ------------------ Rotas da Ata ------------------
+@app.route("/ata", methods=["GET"]) 
+def form_ata():
+    if "tipo_usuario" not in session or session.get("tipo_usuario") != "lider":
+        flash("Acesso não autorizado", "danger")
+        return redirect(url_for("login_lider"))
+    # Opções para combos
+    tipos = ["Culto de Obreiros", "Reunião de Líderes", "Assembleia", "Treinamento"]
+    departamentos = ["Evangelismo", "Louvor", "Intercessão", "Diaconato", "Ensino"]
+    return render_template("ata.html", tipos=tipos, departamentos=departamentos)
+
+
+@app.route("/ata", methods=["POST"]) 
+def salvar_ata():
+    if "tipo_usuario" not in session or session.get("tipo_usuario") != "lider":
+        flash("Acesso não autorizado", "danger")
+        return redirect(url_for("login_lider"))
+
+    data_reuniao = request.form.get("data_reuniao")
+    tipo = request.form.get("tipo")
+    departamento = request.form.get("departamento")
+    tema = request.form.get("tema")
+    local = request.form.get("local")
+    observacoes = request.form.get("observacoes")
+
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text("""
+                    INSERT INTO atas (data_reuniao, tipo, departamento, tema, local, observacoes)
+                    VALUES (:data_reuniao, :tipo, :departamento, :tema, :local, :observacoes)
+                """),
+                {
+                    "data_reuniao": data_reuniao,
+                    "tipo": tipo,
+                    "departamento": departamento,
+                    "tema": tema,
+                    "local": local,
+                    "observacoes": observacoes
+                }
+            )
+        flash("Ata registrada com sucesso!", "success")
+        return redirect(url_for("form_ata"))
+    except Exception as e:
+        flash(f"Erro ao salvar ata: {e}", "danger")
+        return redirect(url_for("form_ata"))
 
 @app.route("/remover_obreiro/<int:id>", methods=["POST"])
 def remover_obreiro(id):
